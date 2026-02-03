@@ -10,10 +10,8 @@ import androidx.navigation.compose.rememberNavController
 import com.memelords.ui.screens.auth.ForgotPasswordScreen
 import com.memelords.ui.screens.auth.LoginScreen
 import com.memelords.ui.screens.auth.RegisterScreen
-import com.memelords.ui.screens.home.HomeScreen
+import com.memelords.ui.screens.main.MainScreen
 import com.memelords.ui.screens.post.CreatePostScreen
-import com.memelords.ui.screens.profile.EditProfileScreen
-import com.memelords.ui.screens.profile.ProfileScreen
 import com.memelords.utils.TokenManager
 import com.memelords.viewmodel.AuthViewModel
 import com.memelords.viewmodel.HomeViewModel
@@ -24,10 +22,8 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object ForgotPassword : Screen("forgot_password")
-    object Home : Screen("home")
+    object Main : Screen("main")
     object CreatePost : Screen("create_post")
-    object Profile : Screen("profile")
-    object EditProfile : Screen("edit_profile")
 }
 
 @Composable
@@ -40,7 +36,7 @@ fun NavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     val token by tokenManager.getToken().collectAsState(initial = null)
-    val startDestination = if (token != null) Screen.Home.route else Screen.Login.route
+    val startDestination = if (token != null) Screen.Main.route else Screen.Login.route
 
     NavHost(
         navController = navController,
@@ -57,7 +53,7 @@ fun NavGraph(
                     navController.navigate(Screen.ForgotPassword.route)
                 },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
@@ -69,7 +65,7 @@ fun NavGraph(
                 viewModel = authViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onRegisterSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
@@ -82,36 +78,15 @@ fun NavGraph(
             )
         }
 
-        // Main screens
-        composable(Screen.Home.route) {
-            HomeScreen(
-                viewModel = homeViewModel,
+        // Main screen with bottom navigation
+        composable(Screen.Main.route) {
+            MainScreen(
+                homeViewModel = homeViewModel,
+                profileViewModel = profileViewModel,
+                postViewModel = postViewModel, // PASS PostViewModel
+                authViewModel = authViewModel,
                 onNavigateToCreatePost = {
                     navController.navigate(Screen.CreatePost.route)
-                },
-                onNavigateToProfile = {
-                    navController.navigate(Screen.Profile.route)
-                }
-            )
-        }
-
-        composable(Screen.CreatePost.route) {
-            CreatePostScreen(
-                viewModel = postViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onPostCreated = {
-                    navController.popBackStack()
-                    homeViewModel.loadPosts() // Refresh feed
-                }
-            )
-        }
-
-        composable(Screen.Profile.route) {
-            ProfileScreen(
-                viewModel = profileViewModel,
-                authViewModel = authViewModel,
-                onNavigateToEditProfile = {
-                    navController.navigate(Screen.EditProfile.route)
                 },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
@@ -121,10 +96,16 @@ fun NavGraph(
             )
         }
 
-        composable(Screen.EditProfile.route) {
-            EditProfileScreen(
-                viewModel = profileViewModel,
-                onNavigateBack = { navController.popBackStack() }
+        // Create Post screen
+        composable(Screen.CreatePost.route) {
+            CreatePostScreen(
+                viewModel = postViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onPostCreated = {
+                    navController.popBackStack()
+                    homeViewModel.loadPosts() // Refresh feed
+                    profileViewModel.loadProfile() // Refresh profile posts
+                }
             )
         }
     }
